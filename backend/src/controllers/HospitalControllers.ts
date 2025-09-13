@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import ApiResponse from "../helpers/ApiResponse";
 import CreateHospital from "../services/hospitals/createHospital";
 import LoginHospital from "../services/hospitals/loginHospital";
@@ -23,17 +23,19 @@ class Hospital {
       type,
       address
     );
+
     if (!Hospital) {
-      ApiResponse.error(res, "Couldn't create account, try again", 400);
-      return;
+      return ApiResponse.error(res, "Couldn't create account, try again", 400);
     }
+
     await sendEmail(
       email,
       "Account Verification Update",
       "Your hospital's account is being verified",
       verifyingMail
     );
-    ApiResponse.success(res, "Hospital created successfully!", Hospital);
+
+    return ApiResponse.success(res, "Hospital created successfully!", Hospital);
   };
 
   static login = async (req: Request, res: Response): Promise<any> => {
@@ -42,21 +44,22 @@ class Hospital {
 
     if (typeof hospital === "object" && hospital !== null) {
       if (!hospital.verified) {
-        ApiResponse.error(res, "Hospital is not verified yet!", 401);
-        return;
+        return ApiResponse.error(res, "Hospital is not verified yet!", 401);
       }
       res.cookie("sessionToken", hospital.authentication.sessionToken);
-      ApiResponse.success(res, "Hospital logged in successfully", hospital);
-      return;
+      return ApiResponse.success(
+        res,
+        "Hospital logged in successfully",
+        hospital
+      );
     }
 
-    ApiResponse.error(res, "Invalid Credentials", 400);
+    return ApiResponse.error(res, "Invalid Credentials", 400);
   };
 
   static getHospital = async (req: Request, res: Response): Promise<any> => {
     const hospital = get(req, "identity"); //passed from middleware
-
-    ApiResponse.success(res, "Hospital retrieved successfully", hospital);
+    return ApiResponse.success(res, "Hospital retrieved successfully", hospital);
   };
 
   static getUserProfile = async (req: Request, res: Response): Promise<any> => {
@@ -74,7 +77,8 @@ class Hospital {
   static createDoctor = async (req: Request, res: Response): Promise<any> => {
     try {
       const sessionToken =
-        req.cookies["sessionToken"] || req.headers.authorization.split(" ")[1];
+        req.cookies["sessionToken"] ||
+        req.headers.authorization.split(" ")[1];
 
       const hospital = await getHospitalBySessionToken(sessionToken);
 
@@ -128,11 +132,14 @@ class Hospital {
 
     const hospital = await getHospitalByEmail(email);
 
-    hospital.verified = true;
+    if (!hospital) {
+      return ApiResponse.error(res, "Hospital not found", 404);
+    }
 
+    hospital.verified = true;
     await hospital.save();
 
-    sendEmail(
+    await sendEmail(
       email,
       "Account Verified",
       "Your hospital's account has been verified",

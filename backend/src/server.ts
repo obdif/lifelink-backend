@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import routes from "./router/index";
 
 require("dotenv").config();
+
 const app = express();
 
 const corsOptions = {
@@ -17,26 +18,32 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
 app.use(cookieParser());
-// app.use(express.urlencoded(true));
 app.use(express.json());
 
 const server = http.createServer(app);
 
-const MONGO_URL = process.env.MONGO_URL;
-const port = process.env.PORT;
+// ✅ Get values from .env safely
+const MONGO_URL = process.env.MONGO_URL as string;
+const PORT = process.env.PORT || 8080;
 
+if (!MONGO_URL) {
+  console.error("❌ MONGO_URL is not defined in .env");
+  process.exit(1);
+}
+
+// ✅ Connect to MongoDB first, then start server
 mongoose
   .connect(MONGO_URL)
   .then(() => {
-    server.listen(8080, () => {
-      console.log(`Server is running at http://localhost:${port}`);
+    console.log("✅ MongoDB connected");
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
     });
   })
   .catch((error) => {
-    console.error(error);
-    console.error("Error occured while connecting to your database.");
+    console.error("❌ Error occurred while connecting to MongoDB:", error);
   });
 
+// ✅ API routes
 app.use("/api", routes());
